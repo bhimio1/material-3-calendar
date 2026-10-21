@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.material3.Calendar
+Exec=/usr/bin/m3-calendar daemon
+SystemdService=m3-calendar.service

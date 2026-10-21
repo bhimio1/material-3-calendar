@@ -1,0 +1,31 @@
+# Maintainer: bhimio1
+# Template: the release workflow fills in @PKGVER@ and @SHA256@ and publishes
+# this to the AUR as material-3-calendar-bin.
+pkgname=material-3-calendar-bin
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc="Material 3 calendar: Google, Microsoft, iCloud, CalDAV and local calendars with a sync daemon"
+arch=('x86_64')
+url="https://github.com/bhimio1/material-3-calendar"
+license=('MIT')
+depends=('libxkbcommon' 'wayland' 'libglvnd' 'libsecret' 'xdg-utils' 'dbus')
+optdepends=(
+  'gnome-keyring: a Secret Service keyring for sign-in tokens (or KeePassXC / KWallet)'
+  'zenity: file chooser for .ics import'
+)
+provides=('material-3-calendar')
+conflicts=('material-3-calendar' 'material-3-calendar-git')
+source=("$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/m3-calendar-x86_64-linux.tar.gz")
+sha256sums=('@SHA256@')
+
+package() {
+  cd "m3-calendar-x86_64-linux"
+  install -Dm755 m3-calendar "$pkgdir/usr/bin/m3-calendar"
+  install -Dm644 material_3_calendar.desktop "$pkgdir/usr/share/applications/material_3_calendar.desktop"
+  # The tarball's unit runs ~/.local/bin/m3-calendar; the package's runs /usr/bin.
+  sed 's|%h/.local/bin/m3-calendar|/usr/bin/m3-calendar|' share/systemd/user/m3-calendar.service > m3-calendar.service
+  install -Dm644 m3-calendar.service "$pkgdir/usr/lib/systemd/user/m3-calendar.service"
+  install -Dm644 org.material3.Calendar.service "$pkgdir/usr/share/dbus-1/services/org.material3.Calendar.service"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 LICENSE-Inter.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE-Inter.txt"
+}

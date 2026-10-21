@@ -1,0 +1,15 @@
+[Unit]
+Description=Material 3 Calendar sync and reminders
+Documentation=https://github.com/bhimio1/material-3-calendar
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=org.material3.Calendar
+ExecStart=/usr/bin/m3-calendar daemon
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

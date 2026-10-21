@@ -1,0 +1,20 @@
+[Desktop Entry]
+Type=Application
+Name=Calendar
+GenericName=Calendar
+Comment=Google, Microsoft, iCloud, CalDAV and local calendars, with tasks and reminders
+Exec=m3-calendar
+Icon=x-office-calendar
+Terminal=false
+Categories=Office;Calendar;Utility;
+Keywords=calendar;events;agenda;schedule;tasks;todo;reminders;caldav;google;outlook;icloud;
+StartupWMClass=material_3_calendar
+Actions=Agenda;Week;
+
+[Desktop Action Agenda]
+Name=Agenda
+Exec=m3-calendar --view agenda
+
+[Desktop Action Week]
+Name=This week
+Exec=m3-calendar --view week

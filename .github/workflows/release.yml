@@ -1,0 +1,106 @@
+name: Release
+
+# Push a tag like v0.1.0 (or run this by hand with a tag name) to:
+#   1. build a Linux binary and attach it to a GitHub release (end4-pC's
+#      installer downloads it), and
+#   2. publish material-3-calendar-bin and material-3-calendar-git to the AUR.
+# AUR publishing needs the repository secrets AUR_SSH_PRIVATE_KEY,
+# AUR_USERNAME and AUR_EMAIL; without them that job is skipped.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to rebuild and republish (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  BIN: m3-calendar
+  APP_ID: material_3_calendar
+  PKG: material-3-calendar
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    outputs:
+      sha256: ${{ steps.package.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y dbus libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        run: dbus-run-session -- cargo test --locked
+      - name: Build
+        run: cargo build --locked --release
+      - name: Package
+        id: package
+        run: |
+          dir="$BIN-x86_64-linux"
+          mkdir -p "$dir"
+          cp "target/release/$BIN" "$dir/"
+          cp "packaging/$APP_ID.desktop" packaging/org.material3.Calendar.service "$dir/"
+          cp LICENSE assets/LICENSE-Inter.txt "$dir/"
+          # Settings copies share/ to ~/.local/share and enables the unit;
+          # this copy runs the binary from ~/.local/bin.
+          mkdir -p "$dir/share/systemd/user"
+          sed 's|/usr/bin/m3-calendar|%h/.local/bin/m3-calendar|' packaging/m3-calendar.service > "$dir/share/systemd/user/m3-calendar.service"
+          tar czf "$dir.tar.gz" "$dir"
+          sha256sum "$dir.tar.gz" > "$dir.tar.gz.sha256"
+          echo "sha256=$(cut -d' ' -f1 "$dir.tar.gz.sha256")" >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: |
+            ${{ env.BIN }}-x86_64-linux.tar.gz
+            ${{ env.BIN }}-x86_64-linux.tar.gz.sha256
+
+  aur:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - name: Skip without AUR credentials
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::AUR_SSH_PRIVATE_KEY isn't set, so nothing was published to the AUR."
+      - name: Fill in the -bin PKGBUILD
+        if: env.HAS_KEY == 'true'
+        run: |
+          mkdir -p aur-bin
+          sed -e "s/@PKGVER@/${TAG#v}/" -e "s/@SHA256@/${{ needs.build.outputs.sha256 }}/" \
+            packaging/aur/PKGBUILD-bin > aur-bin/PKGBUILD
+      - name: Publish ${{ env.PKG }}-bin
+        if: env.HAS_KEY == 'true'
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.3
+        with:
+          pkgname: ${{ env.PKG }}-bin
+          pkgbuild: ./aur-bin/PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to ${{ env.TAG }}
+          ssh_keyscan_types: rsa,ecdsa,ed25519
+      - name: Publish ${{ env.PKG }}-git
+        if: env.HAS_KEY == 'true'
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.3
+        with:
+          pkgname: ${{ env.PKG }}-git
+          pkgbuild: ./packaging/PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update PKGBUILD for ${{ env.TAG }}
+          allow_empty_commits: false
+          ssh_keyscan_types: rsa,ecdsa,ed25519

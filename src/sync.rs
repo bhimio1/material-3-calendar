@@ -120,6 +120,7 @@ pub fn add_local_task_list(store: &Store, name: &str) -> Result<Calendar> {
 /// Imports an .ics file into a new local calendar. Returns it and how many
 /// events came in.
 pub fn import_ics(store: &Store, path: &Path) -> Result<(Calendar, usize)> {
+    ensure_local_calendar(store)?;
     let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     let parsed = crate::ical::parse(&text, &crate::recur::local_zone_name());
     if parsed.events.is_empty() && parsed.tasks.is_empty() {
@@ -268,7 +269,8 @@ mod tests {
         assert_eq!(export_ics(&store, &cal.id, &out).unwrap(), 1);
         let back = crate::ical::parse(&std::fs::read_to_string(out).unwrap(), "UTC");
         assert_eq!(back.events[0].title, "Sync");
-        ensure_local_calendar(&store).unwrap();
-        assert_eq!(store.calendars().unwrap().iter().filter(|c| c.account_id == "local").count(), 2);
+        // Importing makes sure the default "Personal" calendar exists too.
+        let names: Vec<String> = store.calendars().unwrap().into_iter().map(|c| c.name).collect();
+        assert_eq!(names, vec!["Personal", "Team", "Team tasks"]);
     }
 }

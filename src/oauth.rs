@@ -21,6 +21,9 @@ pub struct OAuthConfig {
     pub client_secret: Option<String>,
     pub scopes: Vec<String>,
     pub extra: Vec<(String, String)>,
+    /// "127.0.0.1" (Google) or "localhost" (Microsoft only accepts the
+    /// registered `http://localhost`, with any port).
+    pub redirect_host: String,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -79,7 +82,7 @@ pub fn authorize_url(cfg: &OAuthConfig, redirect: &str, challenge: &str, state: 
 /// trades the code for tokens.
 pub fn sign_in(cfg: &OAuthConfig, open: impl FnOnce(&str) -> Result<()>, timeout: Duration) -> Result<Tokens> {
     let listener = TcpListener::bind("127.0.0.1:0").context("starting the sign-in listener")?;
-    let redirect = format!("http://127.0.0.1:{}", listener.local_addr()?.port());
+    let redirect = format!("http://{}:{}", cfg.redirect_host, listener.local_addr()?.port());
     let (verifier, challenge) = pkce_pair();
     let state = random_string(24);
     open(&authorize_url(cfg, &redirect, &challenge, &state))?;
@@ -202,6 +205,7 @@ mod tests {
             client_secret: None,
             scopes: vec!["a".into(), "b".into()],
             extra: vec![("prompt".into(), "consent".into())],
+            redirect_host: "127.0.0.1".into(),
         };
         let u = url::Url::parse(&authorize_url(&cfg, "http://127.0.0.1:5000", "chal", "st")).unwrap();
         let q: std::collections::HashMap<_, _> = u.query_pairs().into_owned().collect();
@@ -228,6 +232,7 @@ mod tests {
             client_secret: None,
             scopes: vec!["s".into()],
             extra: vec![],
+            redirect_host: "127.0.0.1".into(),
         };
         let tokens = sign_in(
             &cfg,

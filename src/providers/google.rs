@@ -208,6 +208,13 @@ impl Google {
     }
 }
 
+/// The signed-in user's address (the primary calendar's id).
+pub fn account_email(base: &str, access_token: &str) -> Result<String> {
+    let url = format!("{}/calendar/v3/users/me/calendarList/primary", base.trim_end_matches('/'));
+    let v: Value = send(agent(true).get(&url).set("Authorization", &format!("Bearer {access_token}")), None)?.into_json()?;
+    Ok(v["id"].as_str().unwrap_or("Google account").to_string())
+}
+
 impl Provider for Google {
     fn calendars(&mut self) -> Result<Vec<Calendar>> {
         let url = format!("{}/calendar/v3/users/me/calendarList?maxResults=250", self.base);

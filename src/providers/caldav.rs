@@ -18,7 +18,6 @@ pub struct CalDav {
 }
 
 struct Reply {
-    status: u16,
     etag: Option<String>,
     body: String,
 }
@@ -71,14 +70,13 @@ impl CalDav {
                 }
                 Err(e) => return Err(anyhow!("{e}")),
             };
-            let status = r.status();
-            if (300..400).contains(&status) {
+            if (300..400).contains(&r.status()) {
                 let loc = r.header("Location").ok_or_else(|| anyhow!("redirect without a location"))?;
                 url = url::Url::parse(&url)?.join(loc)?.to_string();
                 continue;
             }
             let etag = r.header("ETag").map(String::from);
-            return Ok(Reply { status, etag, body: r.into_string().unwrap_or_default() });
+            return Ok(Reply { etag, body: r.into_string().unwrap_or_default() });
         }
         bail!("too many redirects")
     }
@@ -425,6 +423,8 @@ mod tests {
     use super::*;
     use std::sync::{Arc, Mutex};
 
+    type Files = Arc<Mutex<HashMap<String, (String, String)>>>;
+
     fn ics(uid: &str, title: &str, day: u32) -> String {
         format!("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:{uid}\r\nDTSTART:202610{day:02}T100000Z\r\nDTEND:202610{day:02}T110000Z\r\nSUMMARY:{title}\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
     }
@@ -434,8 +434,8 @@ mod tests {
     }
 
     /// A small in-memory CalDAV server: /dav/cal/ holds events.
-    fn server(with_sync: bool) -> (MockServer, Arc<Mutex<HashMap<String, (String, String)>>>) {
-        let files: Arc<Mutex<HashMap<String, (String, String)>>> = Arc::new(Mutex::new(HashMap::new()));
+    fn server(with_sync: bool) -> (MockServer, Files) {
+        let files: Files = Arc::new(Mutex::new(HashMap::new()));
         files.lock().unwrap().insert("/dav/cal/a.ics".into(), ("\"1\"".into(), ics("a", "Alpha", 21)));
         files.lock().unwrap().insert("/dav/cal/b.ics".into(), ("\"1\"".into(), ics("b", "Beta", 22)));
         let f = files.clone();
@@ -501,7 +501,7 @@ mod tests {
         (s, files)
     }
 
-    fn setup(with_sync: bool) -> (MockServer, Arc<Mutex<HashMap<String, (String, String)>>>, CalDav, Store, Calendar) {
+    fn setup(with_sync: bool) -> (MockServer, Files, CalDav, Store, Calendar) {
         let (s, files) = server(with_sync);
         let mut dav = CalDav::new("d", &s.url, "u", "p");
         let cals = dav.calendars().unwrap();

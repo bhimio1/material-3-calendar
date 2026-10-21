@@ -13,6 +13,8 @@ pub struct Quick {
     pub start: NaiveDateTime,
     pub end: NaiveDateTime,
     pub all_day: bool,
+    /// From "every day", "weekly", "every monday", "every weekday", …
+    pub rrule: Option<String>,
 }
 
 const MONTHS: [&str; 12] = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -77,7 +79,9 @@ fn time(word: &str, bare: bool) -> Option<(NaiveTime, bool)> {
         (w, None)
     };
     let (h, m) = match num.split_once([':', '.']) {
-        Some((h, m)) => (h.parse::<u32>().ok()?, m.parse::<u32>().ok()?),
+        // "1:1" isn't a time; minutes always have two digits.
+        Some((h, m)) if m.len() == 2 => (h.parse::<u32>().ok()?, m.parse::<u32>().ok()?),
+        Some(_) => return None,
         None if suffix.is_some() || bare => (num.parse::<u32>().ok()?, 0),
         None => return None,
     };
@@ -121,6 +125,7 @@ pub fn parse(input: &str, now: NaiveDateTime) -> Quick {
     let mut dur: Option<Duration> = None;
     let mut all_day = false;
     let mut location: Vec<&str> = Vec::new();
+    let mut rrule: Option<String> = None;
 
     let is_marker = |i: usize, lower: &[String]| -> bool {
         let w = lower[i].as_str();
@@ -134,6 +139,54 @@ pub fn parse(input: &str, now: NaiveDateTime) -> Quick {
     while i < words.len() {
         let w = lower[i].as_str();
         let next = lower.get(i + 1).map(String::as_str);
+        // Repeats.
+        let simple = match w {
+            "daily" => Some("FREQ=DAILY"),
+            "weekly" => Some("FREQ=WEEKLY"),
+            "monthly" => Some("FREQ=MONTHLY"),
+            "yearly" | "annually" => Some("FREQ=YEARLY"),
+            _ => None,
+        };
+        if let Some(r) = simple {
+            rrule = Some(r.into());
+            used[i] = true;
+            i += 1;
+            continue;
+        }
+        if w == "every" {
+            if let Some(n) = next {
+                let rule = match n.trim_end_matches(',') {
+                    "day" => Some("FREQ=DAILY".to_string()),
+                    "week" => Some("FREQ=WEEKLY".to_string()),
+                    "month" => Some("FREQ=MONTHLY".to_string()),
+                    "year" => Some("FREQ=YEARLY".to_string()),
+                    "weekday" | "weekdays" => Some("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR".to_string()),
+                    other => weekday(other.trim_end_matches('s')).or_else(|| weekday(other)).map(|wd| {
+                        // The first one is the next such day.
+                        let mut d = today;
+                        while d.weekday() != wd {
+                            d += Duration::days(1);
+                        }
+                        date.get_or_insert(d);
+                        format!("FREQ=WEEKLY;BYDAY={}", &format!("{wd:?}").to_uppercase()[..2])
+                    }),
+                };
+                if let Some(r) = rule {
+                    if r.contains("BYDAY=MO,TU") && date.is_none() {
+                        let mut d = today;
+                        while d.weekday().num_days_from_monday() > 4 {
+                            d += Duration::days(1);
+                        }
+                        date = Some(d);
+                    }
+                    rrule = Some(r);
+                    used[i] = true;
+                    used[i + 1] = true;
+                    i += 2;
+                    continue;
+                }
+            }
+        }
         // Dates.
         if w == "today" {
             date = Some(today);
@@ -305,6 +358,7 @@ pub fn parse(input: &str, now: NaiveDateTime) -> Quick {
         start,
         end,
         all_day,
+        rrule,
     }
 }
 
@@ -380,5 +434,18 @@ mod tests {
         assert_eq!(q.start, dt(12, 1, 12, 0));
         assert_eq!(parse("", now()).title, "New event");
         assert_eq!(parse("Standup 9:15", now()).start, dt(10, 21, 9, 15));
+        assert_eq!(parse("1:1 with Alex friday 2pm", now()).title, "1:1 with Alex");
+    }
+
+    #[test]
+    fn repeats() {
+        let q = parse("Standup every weekday 9:30-9:45am", now());
+        assert_eq!(q.title, "Standup");
+        assert_eq!(q.rrule.as_deref(), Some("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"));
+        assert_eq!(q.start, dt(10, 21, 9, 30));
+        let q = parse("Piano every thursday 5pm", now());
+        assert_eq!(q.rrule.as_deref(), Some("FREQ=WEEKLY;BYDAY=TH"));
+        assert_eq!(q.start, dt(10, 22, 17, 0));
+        assert_eq!(parse("Rent monthly", now()).rrule.as_deref(), Some("FREQ=MONTHLY"));
     }
 }

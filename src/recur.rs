@@ -95,11 +95,6 @@ pub fn expand(ev: &Event, from: i64, to: i64) -> Vec<(i64, i64)> {
         .collect()
 }
 
-/// The next occurrence starting at or after `t`, for reminders.
-pub fn next_after(ev: &Event, t: i64) -> Option<i64> {
-    expand(ev, t, t + 400 * 86400).into_iter().map(|(s, _)| s).find(|s| *s >= t)
-}
-
 /// Common repeat choices for the editor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Repeat {
@@ -203,7 +198,6 @@ mod tests {
         // An occurrence already in progress at `from` is included.
         let occ = expand(&ev, start + 600, start + 700);
         assert_eq!(occ, vec![(start, start + 1800)]);
-        assert_eq!(next_after(&ev, start + 1), Some(start + 2 * 86400));
     }
 
     #[test]

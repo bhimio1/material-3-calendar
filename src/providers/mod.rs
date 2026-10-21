@@ -72,6 +72,7 @@ pub fn google_oauth(ep: &Endpoints, client_id: &str, client_secret: Option<Strin
         ],
         // Without these Google doesn't hand out a refresh token.
         extra: vec![("access_type".into(), "offline".into()), ("prompt".into(), "consent".into())],
+        redirect_host: "127.0.0.1".into(),
     }
 }
 
@@ -88,6 +89,7 @@ pub fn microsoft_oauth(ep: &Endpoints, client_id: &str) -> OAuthConfig {
             "Tasks.ReadWrite".into(),
         ],
         extra: vec![("prompt".into(), "select_account".into())],
+        redirect_host: "localhost".into(),
     }
 }
 
@@ -111,6 +113,7 @@ impl TokenSource {
     }
 
     /// A fixed token, for tests.
+    #[cfg(test)]
     pub fn fixed(token: &str) -> Self {
         Self {
             cfg: None,
@@ -479,6 +482,24 @@ pub mod testing {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refresh_rotates_the_stored_token() {
+        let server = testing::MockServer::start(|req| {
+            assert!(req.body.contains("grant_type=refresh_token"));
+            assert!(req.body.contains("refresh_token=old"));
+            (200u16, r#"{"access_token":"fresh","refresh_token":"new","expires_in":3600}"#)
+        });
+        let secrets: Arc<dyn Secrets> = Arc::new(crate::secrets::Memory::default());
+        let mut cfg = microsoft_oauth(&Endpoints::default(), "cid");
+        cfg.token_url = format!("{}/token", server.url);
+        let mut ts = TokenSource::new(cfg, "old".into(), secrets.clone(), "account:x".into(), "label".into());
+        assert_eq!(ts.bearer().unwrap(), "Bearer fresh");
+        // Cached: no second request.
+        assert_eq!(ts.bearer().unwrap(), "Bearer fresh");
+        assert_eq!(server.requests().len(), 1);
+        assert_eq!(secrets.get("account:x").unwrap().as_deref(), Some("new"));
+    }
 
     #[test]
     fn xml_tree_ignores_namespaces_and_decodes_entities() {

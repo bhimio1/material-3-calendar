@@ -179,6 +179,13 @@ impl Microsoft {
     }
 }
 
+/// The signed-in user's address.
+pub fn account_email(base: &str, access_token: &str) -> Result<String> {
+    let url = format!("{}/me", base.trim_end_matches('/'));
+    let v: Value = send(agent(true).get(&url).set("Authorization", &format!("Bearer {access_token}")), None)?.into_json()?;
+    Ok(v["mail"].as_str().or(v["userPrincipalName"].as_str()).unwrap_or("Microsoft account").to_string())
+}
+
 impl Provider for Microsoft {
     fn calendars(&mut self) -> Result<Vec<Calendar>> {
         let (items, _) = self.pages(&format!("{}/me/calendars", self.base)).context("listing Outlook calendars")?;

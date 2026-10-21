@@ -38,16 +38,6 @@ impl AccountKind {
         }
     }
 
-    pub fn parse(s: &str) -> Option<Self> {
-        Some(match s {
-            "google" => Self::Google,
-            "microsoft" => Self::Microsoft,
-            "icloud" => Self::Icloud,
-            "caldav" => Self::Caldav,
-            "local" => Self::Local,
-            _ => return None,
-        })
-    }
 }
 
 /// What a remote collection holds.

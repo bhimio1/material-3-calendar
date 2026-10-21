@@ -131,6 +131,7 @@ pub fn quick_add(store: &Store, settings: &Settings, text: &str, calendar_id: Op
     ev.end = to_ts(q.end, q.all_day);
     ev.title = q.title;
     ev.location = q.location;
+    ev.rrule = q.rrule;
     ev.calendar_id = calendar_id.unwrap_or_default().to_string();
     let id = save_event(store, settings, ev)?;
     store.event(&id)?.ok_or_else(|| anyhow!("the event wasn't saved"))

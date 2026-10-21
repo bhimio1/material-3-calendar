@@ -3,7 +3,9 @@
 //! from libsecret, never in a plain file.
 
 use anyhow::{anyhow, Result};
+#[cfg(test)]
 use std::collections::HashMap;
+#[cfg(test)]
 use std::sync::Mutex;
 
 pub trait Secrets: Send + Sync {
@@ -48,9 +50,11 @@ impl Secrets for Keyring {
 }
 
 /// For tests.
+#[cfg(test)]
 #[derive(Default)]
 pub struct Memory(Mutex<HashMap<String, String>>);
 
+#[cfg(test)]
 impl Secrets for Memory {
     fn get(&self, key: &str) -> Result<Option<String>> {
         Ok(self.0.lock().unwrap().get(key).cloned())

@@ -65,6 +65,7 @@ pub struct Settings {
     pub default_calendar: String,
     pub show_tasks: bool,
     pub show_week_numbers: bool,
+    pub time_24h: bool,
     pub sync_minutes: u64,
     /// OAuth "Desktop app" client ids the user registered (see README).
     pub google_client_id: String,
@@ -82,6 +83,7 @@ impl Default for Settings {
             default_calendar: String::new(),
             show_tasks: true,
             show_week_numbers: false,
+            time_24h: true,
             sync_minutes: 15,
             google_client_id: String::new(),
             microsoft_client_id: String::new(),

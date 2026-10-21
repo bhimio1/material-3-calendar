@@ -70,6 +70,7 @@ impl Store {
         Self::open(&default_path())
     }
 
+    #[cfg(test)]
     pub fn in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
@@ -84,14 +85,6 @@ impl Store {
             .optional()
             .ok()
             .flatten()
-    }
-
-    pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
-        self.conn.execute(
-            "INSERT INTO meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = ?2",
-            params![key, value],
-        )?;
-        Ok(())
     }
 
     /// Increases on every change; readers compare it to know when to reload.
@@ -134,7 +127,7 @@ impl Store {
 
     pub fn calendars(&self) -> Result<Vec<Calendar>> {
         let mut st = self.conn.prepare(&format!(
-            "SELECT {} FROM calendars ORDER BY account_id, position, name",
+            "SELECT {} FROM calendars ORDER BY account_id, position, rowid",
             Self::CAL_COLS
         ))?;
         let rows = st.query_map([], Self::calendar_from_row)?;

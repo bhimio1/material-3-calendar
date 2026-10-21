@@ -1965,7 +1965,7 @@ dependencies = [
 [[package]]
 name = "material-3-ui"
 version = "0.2.0"
-source = "git+https://github.com/bhimio1/material-3-ui?rev=5555579277ac2da1e0f1c15c2f2342d9bfd002b9#5555579277ac2da1e0f1c15c2f2342d9bfd002b9"
+source = "git+https://github.com/bhimio1/material-3-ui?rev=81c14000c29fb3cfefb0b77344b110a518bfed45#81c14000c29fb3cfefb0b77344b110a518bfed45"
 dependencies = [
  "anyhow",
  "base64",

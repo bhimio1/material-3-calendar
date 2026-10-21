@@ -11,7 +11,7 @@ name = "m3-calendar"
 path = "src/main.rs"
 
 [dependencies]
-material-3-ui = { git = "https://github.com/bhimio1/material-3-ui", rev = "5555579277ac2da1e0f1c15c2f2342d9bfd002b9", features = ["oauth", "calendar"] }
+material-3-ui = { git = "https://github.com/bhimio1/material-3-ui", rev = "81c14000c29fb3cfefb0b77344b110a518bfed45", features = ["oauth", "calendar"] }
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 zbus = "4"
@@ -34,7 +34,7 @@ log = "0.4"
 env_logger = "0.11"
 
 [dev-dependencies]
-material-3-ui = { git = "https://github.com/bhimio1/material-3-ui", rev = "5555579277ac2da1e0f1c15c2f2342d9bfd002b9", features = ["testing"] }
+material-3-ui = { git = "https://github.com/bhimio1/material-3-ui", rev = "81c14000c29fb3cfefb0b77344b110a518bfed45", features = ["testing"] }
 tempfile = "3"
 
 [profile.release]

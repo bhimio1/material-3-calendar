@@ -1,0 +1,42 @@
+[package]
+name = "material-3-calendar"
+version = "0.1.0"
+edition = "2021"
+description = "A Material 3 calendar for Arch/CachyOS and end4-pC: Google, Microsoft, iCloud, CalDAV and local calendars with a background sync daemon"
+license = "MIT"
+repository = "https://github.com/bhimio1/material-3-calendar"
+
+[[bin]]
+name = "m3-calendar"
+path = "src/main.rs"
+
+[dependencies]
+material-3-ui = { git = "https://github.com/bhimio1/material-3-ui", rev = "d1c430aa7feebf86d027f6dce1566b6b9ba4dce0" }
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+zbus = "4"
+ureq = { version = "2.12", features = ["json", "native-certs"] }
+rrule = "0.14"
+chrono = "0.4"
+chrono-tz = "0.10"
+iana-time-zone = "0.1"
+quick-xml = "0.38"
+sha2 = "0.10"
+base64 = "0.22"
+fastrand = "2"
+url = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+toml = "0.9"
+dirs = "6"
+anyhow = "1"
+flume = "0.11"
+log = "0.4"
+env_logger = "0.11"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+strip = true

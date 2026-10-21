@@ -13,11 +13,11 @@ mod views;
 use crate::cli::AppArgs;
 use crate::config::{Accounts, Settings, ViewKind};
 use crate::model::{Calendar, Occurrence, Task};
-use crate::secrets::{Keyring, Secrets};
 use crate::store::Store;
 use chrono::{Datelike, Duration, Local, NaiveDate};
 use material_3_ui::egui::{self, Color32, Key};
 use material_3_ui::icons::icons::*;
+use material_3_ui::secrets::{Keyring, Secrets};
 use material_3_ui::sys::task::Task as Job;
 use material_3_ui::theme::ThemeManager;
 use material_3_ui::toasts::{Toast, ToastKind, Toasts};
@@ -112,7 +112,7 @@ impl App {
             toasts: Toasts::default(),
             rev: -1,
             store,
-            secrets: Arc::new(Keyring),
+            secrets: Arc::new(Keyring::new(crate::config::KEYRING_SERVICE)),
             accounts: Accounts::load(),
             calendars: vec![],
             tasks: vec![],

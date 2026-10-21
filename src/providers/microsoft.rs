@@ -2,7 +2,7 @@
 //! (which return each occurrence of a series as its own event, over a
 //! window around today) and Microsoft To Do lists.
 
-use super::{agent, norm_color, send, seg, status_of, Provider, TokenSource};
+use super::{agent, norm_color, path_segment, send, status_of, Provider, TokenSource, USER_AGENT};
 use crate::model::{Calendar, CalendarKind, Dirty, Event, Task};
 use crate::store::Store;
 use anyhow::{Context, Result};
@@ -23,7 +23,7 @@ const FUTURE_DAYS: i64 = 400;
 
 impl Microsoft {
     pub fn new(account_id: &str, base: &str, tokens: TokenSource) -> Self {
-        Self { account_id: account_id.into(), base: base.trim_end_matches('/').into(), tokens, http: agent(true) }
+        Self { account_id: account_id.into(), base: base.trim_end_matches('/').into(), tokens, http: agent(USER_AGENT, true) }
     }
 
     fn get(&mut self, url: &str) -> Result<Value> {
@@ -182,7 +182,7 @@ impl Microsoft {
 /// The signed-in user's address.
 pub fn account_email(base: &str, access_token: &str) -> Result<String> {
     let url = format!("{}/me", base.trim_end_matches('/'));
-    let v: Value = send(agent(true).get(&url).set("Authorization", &format!("Bearer {access_token}")), None)?.into_json()?;
+    let v: Value = send(agent(USER_AGENT, true).get(&url).set("Authorization", &format!("Bearer {access_token}")), None)?.into_json()?;
     Ok(v["mail"].as_str().or(v["userPrincipalName"].as_str()).unwrap_or("Microsoft account").to_string())
 }
 
@@ -235,7 +235,7 @@ impl Provider for Microsoft {
         let fresh = format!(
             "{}/me/calendars/{}/calendarView/delta?startDateTime={}&endDateTime={}",
             self.base,
-            seg(&cal.remote_id),
+            path_segment(&cal.remote_id),
             fmt(now - PAST_DAYS * 86400),
             fmt(now + FUTURE_DAYS * 86400)
         );
@@ -270,10 +270,10 @@ impl Provider for Microsoft {
 
     fn push_event(&mut self, cal: &Calendar, ev: &Event, store: &Store) -> Result<()> {
         let res = if ev.dirty == Dirty::Created {
-            let url = format!("{}/me/calendars/{}/events", self.base, seg(&cal.remote_id));
+            let url = format!("{}/me/calendars/{}/events", self.base, path_segment(&cal.remote_id));
             self.write("POST", &url, &Self::event_body(ev, true))?
         } else {
-            let url = format!("{}/me/events/{}", self.base, seg(&ev.uid));
+            let url = format!("{}/me/events/{}", self.base, path_segment(&ev.uid));
             self.write("PATCH", &url, &Self::event_body(ev, false))?
         };
         let mut done = ev.clone();
@@ -293,12 +293,12 @@ impl Provider for Microsoft {
     }
 
     fn delete_event(&mut self, _cal: &Calendar, ev: &Event) -> Result<()> {
-        let url = format!("{}/me/events/{}", self.base, seg(&ev.uid));
+        let url = format!("{}/me/events/{}", self.base, path_segment(&ev.uid));
         self.delete(&url)
     }
 
     fn sync_tasks(&mut self, cal: &Calendar, store: &Store) -> Result<()> {
-        let url = format!("{}/me/todo/lists/{}/tasks", self.base, seg(&Self::list_id(cal)));
+        let url = format!("{}/me/todo/lists/{}/tasks", self.base, path_segment(&Self::list_id(cal)));
         let (items, _) = self.pages(&url)?;
         let tasks = items
             .iter()
@@ -327,11 +327,11 @@ impl Provider for Microsoft {
         if let Some(d) = t.due {
             body["dueDateTime"] = graph_time(d);
         }
-        let list = format!("{}/me/todo/lists/{}/tasks", self.base, seg(&Self::list_id(cal)));
+        let list = format!("{}/me/todo/lists/{}/tasks", self.base, path_segment(&Self::list_id(cal)));
         let res = if t.dirty == Dirty::Created {
             self.write("POST", &list, &body)?
         } else {
-            self.write("PATCH", &format!("{list}/{}", seg(&t.uid)), &body)?
+            self.write("PATCH", &format!("{list}/{}", path_segment(&t.uid)), &body)?
         };
         let mut done = t.clone();
         if let Some(id) = res["id"].as_str() {
@@ -342,14 +342,14 @@ impl Provider for Microsoft {
     }
 
     fn delete_task(&mut self, cal: &Calendar, t: &Task) -> Result<()> {
-        let url = format!("{}/me/todo/lists/{}/tasks/{}", self.base, seg(&Self::list_id(cal)), seg(&t.uid));
+        let url = format!("{}/me/todo/lists/{}/tasks/{}", self.base, path_segment(&Self::list_id(cal)), path_segment(&t.uid));
         self.delete(&url)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::testing::MockServer;
+    use material_3_ui::testing::MockServer;
     use super::*;
 
     #[test]

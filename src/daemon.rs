@@ -2,12 +2,12 @@
 //! serves the D-Bus interface, and shows reminders as desktop
 //! notifications with Snooze and Open actions.
 
-use crate::config::Settings;
+use crate::config::{Settings, KEYRING_SERVICE};
 use crate::dbus::{self, Service};
 use crate::model::Occurrence;
-use crate::secrets::{Keyring, Secrets};
 use crate::store::Store;
 use anyhow::{Context, Result};
+use material_3_ui::secrets::{Keyring, Secrets};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -42,7 +42,7 @@ pub fn run() -> Result<()> {
                 Ok(s) => s,
                 Err(e) => return log::error!("sync: {e:#}"),
             };
-            let secrets: Arc<dyn Secrets> = Arc::new(Keyring);
+            let secrets: Arc<dyn Secrets> = Arc::new(Keyring::new(KEYRING_SERVICE));
             let mut first = true;
             loop {
                 let minutes = Settings::load().sync_minutes.max(1);

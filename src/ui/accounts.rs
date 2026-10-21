@@ -8,6 +8,7 @@ use crate::model::AccountKind;
 use crate::providers::{self, Endpoints};
 use material_3_ui::common::{self, card, dialog_buttons, modal, row};
 use material_3_ui::egui::RichText;
+use material_3_ui::oauth;
 
 pub enum AddAccount {
     Google { client_id: String, client_secret: String },
@@ -123,10 +124,6 @@ pub fn page(app: &mut App, ui: &mut egui::Ui) {
     }
 }
 
-fn open_url(url: &str) -> anyhow::Result<()> {
-    material_3_ui::sys::cmd::spawn_detached("xdg-open", &[url]).map_err(|e| anyhow::anyhow!("couldn't open the browser: {e}"))
-}
-
 fn field(ui: &mut egui::Ui, label: &str, value: &mut String, hint: &str, password: bool) {
     let p = widgets::palette(ui);
     ui.label(RichText::new(label).size(12.5).color(p.on_surface_variant));
@@ -203,7 +200,7 @@ pub fn dialogs(app: &mut App, ctx: &egui::Context) {
                         "Paste the client ID and secret here.",
                     ]);
                     if widgets::button(ui, ButtonKind::Text, Some(ICON_OPEN_IN_NEW), "Open Google Cloud Console").clicked() {
-                        let _ = open_url("https://console.cloud.google.com/apis/credentials");
+                        let _ = oauth::open_browser("https://console.cloud.google.com/apis/credentials");
                     }
                     ui.add_space(6.0);
                 }
@@ -222,7 +219,7 @@ pub fn dialogs(app: &mut App, ctx: &egui::Context) {
                         "Copy the Application (client) ID here.",
                     ]);
                     if widgets::button(ui, ButtonKind::Text, Some(ICON_OPEN_IN_NEW), "Open App registrations").clicked() {
-                        let _ = open_url("https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade");
+                        let _ = oauth::open_browser("https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade");
                     }
                     ui.add_space(6.0);
                 }
@@ -318,7 +315,7 @@ fn start(app: &mut App, ctx: &egui::Context) {
             app.signin_job.spawn(ctx, move || {
                 let secret = secrets.get(&providers::google_secret_key(&cid)).ok().flatten();
                 let cfg = providers::google_oauth(&ep, &cid, secret);
-                let tokens = crate::oauth::sign_in(&cfg, open_url, std::time::Duration::from_secs(300)).map_err(|e| format!("{e:#}"))?;
+                let tokens = oauth::sign_in(&cfg, oauth::open_browser, std::time::Duration::from_secs(300)).map_err(|e| format!("{e:#}"))?;
                 let refresh = tokens.refresh_token.ok_or("Google didn't send a refresh token; remove Calendar's access at myaccount.google.com and try again")?;
                 let email = providers::google::account_email(&ep.google_api, &tokens.access_token).map_err(|e| format!("{e:#}"))?;
                 finish(Account { kind: AccountKind::Google, name: email, client_id: cid, ..Default::default() }, refresh, settings, secrets)
@@ -333,7 +330,7 @@ fn start(app: &mut App, ctx: &egui::Context) {
             app.save_settings();
             app.signin_job.spawn(ctx, move || {
                 let cfg = providers::microsoft_oauth(&ep, &cid);
-                let tokens = crate::oauth::sign_in(&cfg, open_url, std::time::Duration::from_secs(300)).map_err(|e| format!("{e:#}"))?;
+                let tokens = oauth::sign_in(&cfg, oauth::open_browser, std::time::Duration::from_secs(300)).map_err(|e| format!("{e:#}"))?;
                 let refresh = tokens.refresh_token.ok_or("Microsoft didn't send a refresh token")?;
                 let email = providers::microsoft::account_email(&ep.graph, &tokens.access_token).map_err(|e| format!("{e:#}"))?;
                 finish(Account { kind: AccountKind::Microsoft, name: email, client_id: cid, ..Default::default() }, refresh, settings, secrets)

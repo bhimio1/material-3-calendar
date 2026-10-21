@@ -2,7 +2,8 @@
 //! account, and the way to Accounts and Preferences.
 
 use super::*;
-use material_3_ui::egui::{pos2, vec2, Align2, CornerRadius, FontId, Rect, Sense, Stroke, StrokeKind};
+use material_3_ui::calendar;
+use material_3_ui::egui::{pos2, vec2, CornerRadius, FontId, Rect, Sense, Stroke, StrokeKind};
 
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let p = widgets::palette(ui);
@@ -46,71 +47,12 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
 }
 
 fn mini_month(app: &mut App, ui: &mut egui::Ui) {
-    let p = widgets::palette(ui);
     app.ensure_busy_days();
-    let month = app.mini_month;
-    ui.horizontal(|ui| {
-        ui.add_space(8.0);
-        ui.label(widgets::title_text(month.format("%B %Y").to_string(), 14.0).color(p.on_surface));
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if widgets::icon_button_sized(ui, ICON_CHEVRON_RIGHT, "Next month", true, 30.0, false).clicked() {
-                app.mini_month = add_months(month, 1);
-            }
-            if widgets::icon_button_sized(ui, ICON_CHEVRON_LEFT, "Previous month", true, 30.0, false).clicked() {
-                app.mini_month = add_months(month, -1);
-            }
-        });
-    });
-    let w = ui.available_width();
-    let cell = (w / 7.0).floor();
-    let (rect, _) = ui.allocate_exact_size(vec2(w, cell * 0.8 + cell * 6.0 * 0.86), Sense::hover());
-    let ws = app.settings.week_start;
-    let row_h = cell * 0.86;
-    for (i, n) in weekday_names(ws).iter().enumerate() {
-        ui.painter().text(
-            pos2(rect.left() + cell * (i as f32 + 0.5), rect.top() + cell * 0.4),
-            Align2::CENTER_CENTER,
-            n.chars().next().unwrap_or(' ').to_string(),
-            widgets::title_font(11.0),
-            p.on_surface_variant,
-        );
-    }
-    let start = month_grid_start(month, ws);
-    let today = Local::now().date_naive();
-    for i in 0..42 {
-        let d = start + Duration::days(i);
-        let c = pos2(rect.left() + cell * ((i % 7) as f32 + 0.5), rect.top() + cell * 0.8 + row_h * ((i / 7) as f32 + 0.5));
-        let r = Rect::from_center_size(c, vec2(cell, row_h));
-        let resp = ui.interact(r, egui::Id::unique(("mini", i)), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-        let radius = (row_h / 2.0 - 1.0).min(15.0);
-        let selected = d == app.cursor;
-        let fg = if d == today {
-            ui.painter().circle_filled(c, radius, p.primary);
-            p.on_primary
-        } else if selected {
-            ui.painter().circle_filled(c, radius, p.secondary_container);
-            p.on_secondary_container
-        } else {
-            if resp.hovered() {
-                ui.painter().circle_filled(c, radius, p.on_surface.gamma_multiply(0.08));
-            }
-            if d.month() == month.month() { p.on_surface } else { p.on_surface_variant.gamma_multiply(0.45) }
-        };
-        if selected && d == today {
-            ui.painter().circle_stroke(c, radius + 2.0, Stroke::new(1.5, p.primary));
-        }
-        ui.painter().text(c, Align2::CENTER_CENTER, d.day().to_string(), FontId::proportional(12.0), fg);
-        if app.busy_days.contains(&d) && d != today {
-            ui.painter().circle_filled(pos2(c.x, c.y + radius - 3.0), 1.8, if selected { p.on_secondary_container } else { p.primary });
-        }
-        if resp.clicked() {
-            app.cursor = d;
-            app.page = Page::Calendar;
-            app.scroll_to_hour = true;
-            if d.month() != month.month() {
-                app.mini_month = d.with_day(1).unwrap();
-            }
-        }
+    let busy = &app.busy_days;
+    if let Some(d) = calendar::mini_month(ui, &mut app.mini_month, app.cursor, app.settings.week_start.weekday(), |d| busy.contains(&d)) {
+        app.cursor = d;
+        app.page = Page::Calendar;
+        app.scroll_to_hour = true;
     }
 }
 

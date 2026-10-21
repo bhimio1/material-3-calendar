@@ -199,7 +199,7 @@ pub fn run(args: &[String]) -> Result<bool> {
             }
             None => {
                 let store = Store::open_default()?;
-                let errors = crate::sync::sync_all(&store, &Settings::load(), std::sync::Arc::new(crate::secrets::Keyring));
+                let errors = crate::sync::sync_all(&store, &Settings::load(), std::sync::Arc::new(material_3_ui::secrets::Keyring::new(crate::config::KEYRING_SERVICE)));
                 for e in &errors {
                     eprintln!("{e}");
                 }

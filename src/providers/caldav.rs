@@ -3,7 +3,7 @@
 //! calendar-home-set), incremental sync with sync-collection (RFC 6578)
 //! and an etag comparison fallback, and writes with If-Match.
 
-use super::{agent, parse_xml, status_of, xml_escape, HttpError, Node, Provider};
+use super::{agent, parse_xml, status_of, xml_escape, HttpError, Node, Provider, USER_AGENT};
 use crate::model::{Calendar, CalendarKind, Dirty, Event, Task};
 use crate::store::Store;
 use anyhow::{anyhow, bail, Context, Result};
@@ -33,7 +33,7 @@ impl CalDav {
             "Basic {}",
             base64::engine::general_purpose::STANDARD.encode(format!("{user}:{password}"))
         );
-        Self { account_id: account_id.into(), url: url.trim_end_matches('/').to_string() + "/", auth, http: agent(false) }
+        Self { account_id: account_id.into(), url: url.trim_end_matches('/').to_string() + "/", auth, http: agent(USER_AGENT, false) }
     }
 
     fn abs(&self, href: &str) -> String {
@@ -419,7 +419,7 @@ impl Provider for CalDav {
 
 #[cfg(test)]
 mod tests {
-    use super::super::testing::{MockServer, Reply};
+    use material_3_ui::testing::{MockServer, Reply};
     use super::*;
     use std::sync::{Arc, Mutex};
 

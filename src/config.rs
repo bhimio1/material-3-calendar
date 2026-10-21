@@ -140,6 +140,10 @@ pub struct Account {
     pub client_id: String,
 }
 
+/// The keyring entries' `service` attribute (with `key` from
+/// [`Account::secret_key`]).
+pub const KEYRING_SERVICE: &str = "m3-calendar";
+
 impl Account {
     /// Keyring key for this account's refresh token or password.
     pub fn secret_key(&self) -> String {

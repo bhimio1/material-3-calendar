@@ -70,7 +70,7 @@ pub fn when_text(o: &Occurrence, h24: bool) -> String {
 pub fn month(app: &mut App, ui: &mut egui::Ui) {
     let p = widgets::palette(ui);
     let ws = app.settings.week_start;
-    let start = month_grid_start(app.cursor, ws);
+    let start = month_grid_start(app.cursor, ws.weekday());
     let from = local_midnight(start);
     let to = local_midnight(start + Duration::days(42));
     let occ = app.occurrences(from, to);
@@ -87,7 +87,7 @@ pub fn month(app: &mut App, ui: &mut egui::Ui) {
     let cw = (rect.width() - week_col) / 7.0;
     let ch = (rect.height() - HEADER_H) / 6.0;
     let painter = ui.painter_at(rect);
-    for (i, name) in weekday_names(ws).iter().enumerate() {
+    for (i, name) in weekday_names(ws.weekday()).iter().enumerate() {
         painter.text(
             pos2(rect.left() + week_col + cw * (i as f32 + 0.5), rect.top() + HEADER_H / 2.0),
             Align2::CENTER_CENTER,
@@ -214,7 +214,7 @@ fn columns(spans: &[(i64, i64)]) -> Vec<(usize, usize)> {
 
 pub fn time_grid(app: &mut App, ui: &mut egui::Ui, days: i64) {
     let p = widgets::palette(ui);
-    let first = if days == 7 { week_start(app.cursor, app.settings.week_start) } else { app.cursor };
+    let first = if days == 7 { week_start(app.cursor, app.settings.week_start.weekday()) } else { app.cursor };
     let from = local_midnight(first);
     let to = local_midnight(first + Duration::days(days));
     let occ = app.occurrences(from, to);

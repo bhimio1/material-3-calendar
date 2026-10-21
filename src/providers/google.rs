@@ -1,7 +1,7 @@
 //! Google Calendar API v3 (incremental sync with syncToken) and Google
 //! Tasks API v1.
 
-use super::{agent, norm_color, send, seg, status_of, Provider, TokenSource};
+use super::{agent, norm_color, path_segment, send, status_of, Provider, TokenSource, USER_AGENT};
 use crate::model::{Calendar, CalendarKind, Dirty, Event, Task};
 use crate::store::Store;
 use anyhow::{Context, Result};
@@ -26,7 +26,7 @@ impl Google {
             account_id: account_id.into(),
             base: base.trim_end_matches('/').into(),
             tokens,
-            http: agent(true),
+            http: agent(USER_AGENT, true),
             defaults: HashMap::new(),
         }
     }
@@ -62,7 +62,7 @@ impl Google {
         let mut page: Option<String> = None;
         loop {
             let full = match &page {
-                Some(p) => format!("{url}{}pageToken={}", if url.contains('?') { '&' } else { '?' }, seg(p)),
+                Some(p) => format!("{url}{}pageToken={}", if url.contains('?') { '&' } else { '?' }, path_segment(p)),
                 None => url.to_string(),
             };
             let v = self.get(&full)?;
@@ -77,11 +77,11 @@ impl Google {
     }
 
     fn events_url(&self, remote: &str) -> String {
-        format!("{}/calendar/v3/calendars/{}/events", self.base, seg(remote))
+        format!("{}/calendar/v3/calendars/{}/events", self.base, path_segment(remote))
     }
 
     fn tasks_url(&self, list: &str) -> String {
-        format!("{}/tasks/v1/lists/{}/tasks", self.base, seg(list))
+        format!("{}/tasks/v1/lists/{}/tasks", self.base, path_segment(list))
     }
 }
 
@@ -211,7 +211,7 @@ impl Google {
 /// The signed-in user's address (the primary calendar's id).
 pub fn account_email(base: &str, access_token: &str) -> Result<String> {
     let url = format!("{}/calendar/v3/users/me/calendarList/primary", base.trim_end_matches('/'));
-    let v: Value = send(agent(true).get(&url).set("Authorization", &format!("Bearer {access_token}")), None)?.into_json()?;
+    let v: Value = send(agent(USER_AGENT, true).get(&url).set("Authorization", &format!("Bearer {access_token}")), None)?.into_json()?;
     Ok(v["id"].as_str().unwrap_or("Google account").to_string())
 }
 
@@ -275,7 +275,7 @@ impl Provider for Google {
         }
         let base = format!("{}?maxResults=250&showDeleted=true", self.events_url(&cal.remote_id));
         let (items, token, full) = match &cal.sync_token {
-            Some(t) => match self.pages(&format!("{base}&syncToken={}", seg(t))) {
+            Some(t) => match self.pages(&format!("{base}&syncToken={}", path_segment(t))) {
                 Ok((items, token)) => (items, token, false),
                 // 410: the token expired, start over.
                 Err(e) if status_of(&e) == Some(410) => {
@@ -331,7 +331,7 @@ impl Provider for Google {
         let res = if created {
             self.write("POST", &url, &body)?
         } else {
-            match self.write("PUT", &format!("{url}/{}", seg(&ev.uid)), &body) {
+            match self.write("PUT", &format!("{url}/{}", path_segment(&ev.uid)), &body) {
                 Err(e) if status_of(&e) == Some(404) => self.write("POST", &url, &body)?,
                 other => other?,
             }
@@ -346,7 +346,7 @@ impl Provider for Google {
     }
 
     fn delete_event(&mut self, cal: &Calendar, ev: &Event) -> Result<()> {
-        let url = format!("{}/{}", self.events_url(&cal.remote_id), seg(&ev.uid));
+        let url = format!("{}/{}", self.events_url(&cal.remote_id), path_segment(&ev.uid));
         self.delete(&url)
     }
 
@@ -390,7 +390,7 @@ impl Provider for Google {
         let res = if t.dirty == Dirty::Created {
             self.write("POST", &url, &body)?
         } else {
-            self.write("PATCH", &format!("{url}/{}", seg(&t.uid)), &body)?
+            self.write("PATCH", &format!("{url}/{}", path_segment(&t.uid)), &body)?
         };
         let mut done = t.clone();
         if let Some(id) = res["id"].as_str() {
@@ -402,14 +402,14 @@ impl Provider for Google {
 
     fn delete_task(&mut self, cal: &Calendar, t: &Task) -> Result<()> {
         let list = cal.remote_id.trim_start_matches(TASKS_PREFIX).to_string();
-        let url = format!("{}/{}", self.tasks_url(&list), seg(&t.uid));
+        let url = format!("{}/{}", self.tasks_url(&list), path_segment(&t.uid));
         self.delete(&url)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::testing::MockServer;
+    use material_3_ui::testing::MockServer;
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;

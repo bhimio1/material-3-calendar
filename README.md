@@ -128,12 +128,10 @@ src/
   store.rs       the SQLite cache, occurrences, pending edits
   sync.rs        push-then-pull sync, accounts, .ics import/export
   ops.rs         edits shared by the app, D-Bus and CLI
-  providers/     google.rs, microsoft.rs, caldav.rs (+ HTTP, XML, mock server for tests)
-  oauth.rs       PKCE + loopback sign-in
+  providers/     google.rs, microsoft.rs, caldav.rs (+ the WebDAV XML tree)
   ical.rs        iCalendar reader/writer
   recur.rs       RRULE expansion (rrule crate, per-event time zones)
   nlp.rs         quick add
-  secrets.rs     Secret Service via secret-tool
   config.rs      preferences and account metadata
   ui/            sidebar, views (month, time grid, agenda), editor, tasks, accounts, preferences
 packaging/       PKGBUILD (-git), aur/PKGBUILD-bin, desktop file, systemd and D-Bus service files

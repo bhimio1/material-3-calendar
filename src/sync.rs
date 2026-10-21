@@ -5,7 +5,7 @@
 use crate::config::{Account, Accounts, Settings};
 use crate::model::{AccountKind, Calendar, CalendarKind, Dirty};
 use crate::providers::{self, Endpoints, Provider};
-use crate::secrets::Secrets;
+use material_3_ui::secrets::Secrets;
 use crate::store::Store;
 use anyhow::{anyhow, Context, Result};
 use std::path::Path;
